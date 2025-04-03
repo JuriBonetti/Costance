@@ -12,25 +12,6 @@ def carica_dati(file):
         return pd.DataFrame()  # Restituisce un DataFrame vuoto se c'e un errore
     return df
 
-# Funzione per aggiungere i dati al file Excel
-def aggiungi_dati(file, nuova_riga):
-    try:
-        # Carica i dati
-        df = carica_dati(file)
-        
-        # Converte nuova_riga in DataFrame
-        nuova_riga_df = pd.DataFrame([nuova_riga])
-        
-        # Aggiungi i dati al DataFrame
-        df = pd.concat([df, nuova_riga_df], ignore_index=True)
-        
-        # Usa 'openpyxl' per aprire il file Excel in modalita append senza creare nuovi fogli
-        with pd.ExcelWriter(file, engine='openpyxl', mode='w') as writer:
-            # Scrivi i dati nel foglio esistente (presumiamo che il foglio si chiami 'Sheet1')
-            df.to_excel(writer, index=False, sheet_name='Sheet1')
-    except Exception as e:
-        st.error(f"Errore nell'aggiungere i dati al file: {e}")
-
 # Funzione per calcolare la media del mese per il componente scelto
 def calcola_media(file, mese_target, componente):
     try:
@@ -53,20 +34,15 @@ def calcola_media(file, mese_target, componente):
         st.error(f"Errore nel calcolare la media: {e}")
         return None
 
-    # Funzione per scrivere la media nel file Excel "File_DaPopolare"
-def scrivi_media_su_file(file, componente, media):
+# Funzione per scrivere la media nel file Excel "File_DaPopolare"
+def scrivi_media_su_file(file, cella, media):
     try:
         # Carica il file di destinazione
         wb = load_workbook(file)
         ws = wb.active
         
-        # Scrivi la media nelle celle specifiche
-        if componente == "Azoto":
-            ws["B1"] = media
-        elif componente == "COD":
-            ws["B2"] = media
-        elif componente == "Fosforo":
-            ws["B3"] = media
+        # Scrivi la media nella cella specificata
+        ws[cella] = media
         
         # Salva il file
         wb.save(file)
@@ -77,62 +53,89 @@ def scrivi_media_su_file(file, componente, media):
 # Titolo dell'app
 st.title("Costance_ENEA")
 
+# Sezione per caricare il file Excel
+st.header("Carica il File Excel")
+
 # File Excel di riferimento
 file_dati = "Dati_Ingresso.xlsx"
 file_risultati = "File_DaPopolare.xlsx"
 
-# Sezione per inserire i nuovi dati
-st.header("Inserisci i dati")
-data_input = st.date_input("Data", min_value=pd.to_datetime("2020-01-01"))
-df = carica_dati(file_dati)
-componenti_unici = df['componente'].unique().tolist()  # Lista dei componenti gia presenti nel file Excel
+# Carica il file Excel tramite uploader
+uploaded_file = st.file_uploader("Carica il tuo file Excel", type=["xlsx"])
 
-# Crea un elenco a discesa per i componenti esistenti o inserisci un nuovo componente
-componente_input = st.selectbox("Seleziona un componente", ["--Nuovo Componente--"] + componenti_unici)
+# Se il file e stato caricato, carica e mostra il contenuto
+if uploaded_file:
+    df_caricato = pd.read_excel(uploaded_file)
+    st.write("Contenuto del file Excel caricato:")
+    st.dataframe(df_caricato)
+    
+    # Salva il file caricato in una variabile globale
+    file_dati = uploaded_file
 
-# Se l'utente seleziona '--Nuovo Componente--', permette di inserire un nuovo componente
-if componente_input == "--Nuovo Componente--":
-    componente_input = st.text_input("Inserisci nuovo componente")
-    if not componente_input:
-        st.warning("Puoi aggiungere un nuovo componente, ma il campo non deve essere vuoto.")
-else:
-    st.write(f"Componente selezionato: {componente_input}")
+    # Estrai i componenti unici dal file caricato
+    componenti_disponibili = df_caricato['componente'].unique().tolist()
 
-# Aggiungi la quantita
-quantita_input = st.number_input("Quantita", min_value=0.0, format="%.2f")
+    # Inizializza la tabella (se non e stata ancora creata in sessione)
+    if "tabella_dati" not in st.session_state:
+        st.session_state.tabella_dati = pd.DataFrame(columns=["Componente", "Mese", "Cella Excel"])
 
-# Bottone per aggiungere i dati
-if st.button("Aggiungi Dati"):
-    if componente_input:
-        nuova_riga = {"data": data_input, "componente": componente_input, "quantita": quantita_input}
-        aggiungi_dati(file_dati, nuova_riga)
-        st.success("Dati aggiunti con successo")
-        df = carica_dati(file_dati)  # Ricarica i dati dal file per aggiornare il menu a discesa
-    else:
-        st.error("Il campo 'Nuovo componente' non deve essere vuoto.")
+    # Crea una form per aggiungere nuove righe alla tabella
+    col1, col2, col3 = st.columns(3)
 
-# Sezione per calcolare la media del mese
-st.header("Calcola la Media del Mese")
+    with col1:
+        # Seleziona il componente dalla lista
+        componente_input = st.selectbox("Componente", componenti_disponibili)
 
-# Seleziona mese per la media
-mese_target = st.date_input("Seleziona il mese", value=pd.to_datetime("2025-04-03"))
+    with col2:
+        mese_input = st.date_input("Mese", value=datetime.today())
 
-# Ottieni la lista dei componenti unici dalla colonna "componente"
-componenti_unici = df['componente'].unique().tolist()
+    with col3:
+        cella_input = st.text_input("Cella Excel")
 
-# Seleziona il componente per cui calcolare la media
-componente_media = st.selectbox("Seleziona il componente", componenti_unici)
+    # Bottone per aggiungere una riga alla tabella
+    if st.button("Aggiungi Dati"):
+        if componente_input and cella_input:
+            nuova_riga = pd.DataFrame([[componente_input, mese_input, cella_input]], columns=["Componente", "Mese", "Cella Excel"])
+            
+            # Aggiungi la nuova riga alla tabella memorizzata in session_state
+            st.session_state.tabella_dati = pd.concat([st.session_state.tabella_dati, nuova_riga], ignore_index=True)
+            
+            st.success("Riga aggiunta alla tabella.")
+        else:
+            st.error("Completa tutti i campi prima di aggiungere i dati.")
 
-# Bottone per calcolare la media e scrivere nei risultati
-if st.button("Calcola Media Componente"):
-    media_componente = calcola_media(file_dati, mese_target, componente=componente_media)
-    if media_componente != "Nessun dato":
-        st.write(f"La media di {componente_media} per {mese_target.strftime('%B %Y')} e': {media_componente}")
-        scrivi_media_su_file(file_risultati, componente_media, media_componente)
-        st.success(f"Media di {componente_media} scritta in '{file_risultati}'.")
-    else:
-        st.write(f"Nessun dato per {componente_media} in questo mese.")
+    # Visualizza la tabella aggiornata con opzioni per eliminare le righe
+    st.dataframe(st.session_state.tabella_dati)
 
-# Visualizza i dati attuali
+    # Seleziona quale riga eliminare dalla tabella
+    st.subheader("Elimina una riga dalla tabella")
+    riga_da_eliminare = st.selectbox("Seleziona la riga da eliminare", options=st.session_state.tabella_dati.index.tolist())
+    if st.button("Elimina Riga"):
+        if riga_da_eliminare is not None:
+            st.session_state.tabella_dati = st.session_state.tabella_dati.drop(riga_da_eliminare).reset_index(drop=True)
+            st.success(f"Riga {riga_da_eliminare} eliminata.")
+        else:
+            st.error("Seleziona una riga da eliminare.")
+
+    # Sezione per calcolare la media del mese e scrivere la media nel file Excel
+    st.header("Calcola la Media e Scrivi nel File Excel")
+
+    # Bottone per calcolare la media e scrivere i risultati nel file Excel
+    if st.button("Calcola e Scrivi Media"):
+        for index, row in st.session_state.tabella_dati.iterrows():
+            componente = row["Componente"]
+            mese = row["Mese"]
+            cella = row["Cella Excel"]
+            
+            media_componente = calcola_media(file_dati, mese, componente)
+            
+            if media_componente != "Nessun dato":
+                scrivi_media_su_file(file_risultati, cella, media_componente)
+                st.success(f"Media di {componente} per il mese {mese.strftime('%B %Y')} scritta nella cella {cella}.")
+            else:
+                st.write(f"Nessun dato per {componente} in {mese.strftime('%B %Y')}.")
+
+# Visualizza i dati attuali (opzionale)
 st.header("Visualizza Dati Attuali")
+df = carica_dati(file_dati)
 st.write(df)
