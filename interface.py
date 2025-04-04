@@ -57,7 +57,7 @@ st.title("Costance_ENEA")
 st.header("Carica il File Excel")
 
 # File Excel di riferimento
-file_dati = "data (8).xlsx"
+file_dati = "data_8.xlsx"
 file_risultati = "File_DaPopolare.xlsx"
 
 # Carica il file Excel tramite uploader
