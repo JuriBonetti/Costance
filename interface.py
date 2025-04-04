@@ -18,16 +18,16 @@ def calcola_media(file, mese_target, componente):
         df = carica_dati(file)
         
         # Converte la colonna 'data' in formato datetime
-        df['data'] = pd.to_datetime(df['data'], dayfirst=True)
+        df['Data Prelievo'] = pd.to_datetime(df['Data Prelievo'], dayfirst=True)
         
         # Converti mese_target in pandas Timestamp
         mese_target = pd.to_datetime(mese_target).to_period('M')  # Converti in periodo mensile
         
         # Filtra per mese e componente
-        df_filtro = df[(df['componente'] == componente) & (df['data'].dt.to_period('M') == mese_target)]
+        df_filtro = df[(df['Nome parametro'] == componente) & (df['Data Prelievo'].dt.to_period('M') == mese_target)]
         
         # Calcola la media
-        media = df_filtro['quantita'].mean() if not df_filtro.empty else "Nessun dato"
+        media = df_filtro['Risultato numerico'].mean() if not df_filtro.empty else "Nessun dato"
         
         return media
     except Exception as e:
@@ -57,7 +57,7 @@ st.title("Costance_ENEA")
 st.header("Carica il File Excel")
 
 # File Excel di riferimento
-file_dati = "Dati_Ingresso.xlsx"
+file_dati = "data (8).xlsx"
 file_risultati = "File_DaPopolare.xlsx"
 
 # Carica il file Excel tramite uploader
@@ -73,18 +73,18 @@ if uploaded_file:
     file_dati = uploaded_file
 
     # Estrai i componenti unici dal file caricato
-    componenti_disponibili = df_caricato['componente'].unique().tolist()
+    componenti_disponibili = df_caricato['Nome parametro'].unique().tolist()
 
     # Inizializza la tabella (se non e stata ancora creata in sessione)
     if "tabella_dati" not in st.session_state:
-        st.session_state.tabella_dati = pd.DataFrame(columns=["Componente", "Mese", "Cella Excel"])
+        st.session_state.tabella_dati = pd.DataFrame(columns=["Nome parametro", "Mese", "Cella Excel"])
 
     # Crea una form per aggiungere nuove righe alla tabella
     col1, col2, col3 = st.columns(3)
 
     with col1:
         # Seleziona il componente dalla lista
-        componente_input = st.selectbox("Componente", componenti_disponibili)
+        componente_input = st.selectbox("Nome parametro", componenti_disponibili)
 
     with col2:
         mese_input = st.date_input("Mese", value=datetime.today())
@@ -123,7 +123,7 @@ if uploaded_file:
     # Bottone per calcolare la media e scrivere i risultati nel file Excel
     if st.button("Calcola e Scrivi Media"):
         for index, row in st.session_state.tabella_dati.iterrows():
-            componente = row["Componente"]
+            componente = row["Nome parametro"]
             mese = row["Mese"]
             cella = row["Cella Excel"]
             
