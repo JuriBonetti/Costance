@@ -95,7 +95,7 @@ if uploaded_file:
     # Bottone per aggiungere una riga alla tabella
     if st.button("Aggiungi Dati"):
         if componente_input and cella_input:
-            nuova_riga = pd.DataFrame([[componente_input, mese_input, cella_input]], columns=["Componente", "Mese", "Cella Excel"])
+            nuova_riga = pd.DataFrame([[componente_input, mese_input, cella_input]], columns=["Nome parametro", "Mese", "Cella Excel"])
             
             # Aggiungi la nuova riga alla tabella memorizzata in session_state
             st.session_state.tabella_dati = pd.concat([st.session_state.tabella_dati, nuova_riga], ignore_index=True)
